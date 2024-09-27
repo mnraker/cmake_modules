@@ -81,7 +81,12 @@ if(GLD STREQUAL "$ENV{STUDIO}")
         configure_file(${SConscript_in}
             ${CMAKE_CURRENT_BINARY_DIR}/${lib_name}/SConscript)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${lib_name}/SConscript
-            DESTINATION SConscripts/${lib_name})
+            DESTINATION SConscripts/${lib_name}
+            PERMISSIONS
+              OWNER_READ OWNER_WRITE
+              GROUP_READ GROUP_WRITE
+              WORLD_READ
+        )
     endfunction(SConscript_Stub name)
 else()
     function(SConscript_Stub name)
