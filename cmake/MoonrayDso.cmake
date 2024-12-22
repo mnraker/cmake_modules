@@ -530,19 +530,36 @@ function(moonray_ispc_dso name)
        else()
            set(configDir "")
        endif()
+
        set(proxyDsoPath "${CMAKE_CURRENT_BINARY_DIR}/${configDir}/${name}.so.proxy")
+
+       if(IsWindowsPlatform)
+           # To run rdl2_json_exporter at build-time, ensure required runtime
+           # libraries are available to dynamically link with.
+           list(APPEND _env_list
+               ${CMAKE_PREFIX_PATH}/bin
+               ${CMAKE_PREFIX_PATH}/lib
+               $ENV{PATH}
+           )
+           cmake_path(CONVERT "${_env_list}" TO_NATIVE_PATH_LIST _native_env_list)
+           set(jsonExporterCommand
+               ${CMAKE_COMMAND} -E env "PATH=${_native_env_list}"
+               rdl2_json_exporter)
+       else()
+           set(jsonExporterCommand rdl2_json_exporter)
+       endif()
+
        add_custom_command(TARGET ${name} POST_BUILD
            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
            COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}>
            COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}_proxy>
-           COMMAND rdl2_json_exporter --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
+           COMMAND ${jsonExporterCommand} --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
                --in ${proxyDsoPath}
                --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
            COMMENT "Creating symlinks and generating JSON metadata for ${name}"
            VERBATIM
        )
    endif()
-
     if (NOT ARG_SKIP_INSTALL)
         install(TARGETS ${name} COMPONENT ${name}
             LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
