@@ -36,6 +36,7 @@ endif()
 
 if(IsLinuxPlatform)
     list(APPEND GLOBAL_COMPILE_DEFINITIONS PLATFORM_LINUX)
+    list(APPEND GLOBAL_COMPILE_DEFINITIONS NUMA_SUPPORT)
 endif()
 
 if(IsDarwinPlatform)
