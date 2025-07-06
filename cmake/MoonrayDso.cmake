@@ -185,7 +185,7 @@ function(Moonray_dso_cxx_compile_definitions target)
             BOOST_FILESYSTEM_VERSION=3          # TODO: add comment
             DWA_BOOST_VERSION=1073000           # TODO: add comment
             OPENVDB_USE_BLOSC                   # TODO: Move this to where it is needed?
-            OPENVDB_USE_LOG4CPLUS               # TODO: Move this to where it is needed?
+            $<IF:$<NOT:$<BOOL:${IsWindowsPlatform}>>,OPENVDB_USE_LOG4CPLUS,> # TODO: Alex get OpenVDB to work with LOG4CPLUS windows
             DWREAL_IS_DOUBLE=1                  # TODO: add comment
             dwreal=double                       # TODO: add comment
             GL_GLEXT_PROTOTYPES=1               # TODO: add comment
