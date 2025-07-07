@@ -16,6 +16,9 @@
 #   where to find json.h etc...
 # ``JsonCpp_LIBRARIES``
 #   the libraries to link against to use jsoncpp
+# ``JsonCpp_DLLS``
+#   the DLLs (on windows) to ensure it copies over for executables during the
+#   build process.
 #
 find_path(JsonCpp_INCLUDE_DIR
   NAMES json.h
@@ -28,6 +31,10 @@ set(JsonCpp_INCLUDE_DIRS ${JsonCpp_INCLUDE_DIR}/..)
 find_library(JsonCpp_LIBRARIES
   NAMES json jsoncpp
   HINTS $ENV{JSONCPP_ROOT}/lib $ENV{JsonCpp_ROOT}/lib /usr/local/lib)
+
+find_file(JsonCpp_DLLS
+  NAMES json.dll jsoncpp.dll
+  HINTS $ENV{JSONCPP_ROOT}/lib $ENV{JsonCpp_ROOT}/lib $ENV{JSONCPP_ROOT}/bin $ENV{JsonCpp_ROOT}/bin)
 mark_as_advanced(JsonCpp_INCLUDE_DIR JsonCpp_INCLUDE_DIRS JsonCpp_LIBRARIES)
 
 include(FindPackageHandleStandardArgs)
@@ -36,10 +43,11 @@ find_package_handle_standard_args(JsonCpp
 )
 
 if (JsonCpp_FOUND AND NOT TARGET JsonCpp::JsonCpp)
-    add_library(JsonCpp::JsonCpp UNKNOWN IMPORTED)
+    add_library(JsonCpp::JsonCpp SHARED IMPORTED)
     set_target_properties(JsonCpp::JsonCpp PROPERTIES
       IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
-      IMPORTED_LOCATION "${JsonCpp_LIBRARIES}"
+      IMPORTED_IMPLIB "${JsonCpp_LIBRARIES}"
+      IMPORTED_LOCATION "${JsonCpp_DLLS}"
       INTERFACE_INCLUDE_DIRECTORIES "${JsonCpp_INCLUDE_DIRS}")
 endif()
 
