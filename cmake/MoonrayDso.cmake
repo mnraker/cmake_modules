@@ -527,14 +527,14 @@ function(moonray_ispc_dso name)
                $ENV{BUILD_DIR}/bin $ENV{BUILD_DIR}/lib $ENV{DEPS_ROOT}/bin $ENV{DEPS_ROOT}/lib
                )
            list(JOIN _env_list ";" _env)
-           add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+           add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
                POST_BUILD
                COMMAND ${CMAKE_COMMAND} -E env "PATH=${_env}" "$<TARGET_FILE:rdl2_json_exporter>"
-               --dso_path "$<TARGET_FILE_DIR:${targetName}_proxy>"
-               --in $<TARGET_FILE:${targetName}_proxy>
-               --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
-               DEPENDS ${targetName}_proxy
-               BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+               --dso_path "$<TARGET_FILE_DIR:${name}_proxy>"
+               --in $<TARGET_FILE:${name}_proxy>
+               --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+               DEPENDS ${name}_proxy
+               BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
                )
        else()
            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
