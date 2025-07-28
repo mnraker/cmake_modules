@@ -544,6 +544,10 @@ function(moonray_ispc_dso name)
                ${CMAKE_PREFIX_PATH}/bin
                ${CMAKE_PREFIX_PATH}/lib
                $ENV{PATH}
+               $ENV{BUILD_DIR}/bin
+               $ENV{BUILD_DIR}/lib
+               $ENV{DEPS_ROOT}/bin
+               $ENV{DEPS_ROOT}/lib
            )
            cmake_path(CONVERT "${_env_list}" TO_NATIVE_PATH_LIST _native_env_list)
            set(jsonExporterCommand
