@@ -334,22 +334,39 @@ function(moonray_dso_simple targetName)
            ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json)
 
        # copy resulting DSOs to <build>/rdl2dso dir to be found by tests
-       add_custom_command(TARGET ${targetName} POST_BUILD
-           COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
-           COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${targetName}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}>
-           COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${targetName}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}_proxy>
-       )
+       if (IsWindowsPlatform)
+           add_custom_command(TARGET ${targetName} POST_BUILD
+               COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
+               COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${targetName}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}>
+               COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${targetName}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}_proxy>
+           )
+       else()
+           add_custom_command(TARGET ${targetName} POST_BUILD
+               COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
+               COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${targetName}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}>
+               COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${targetName}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}_proxy>
+           )
+       endif()
    endif()
 
     if (NOT ARG_SKIP_INSTALL)
-        install(TARGETS ${targetName} COMPONENT ${targetName}
-            LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
-            NAMELINK_SKIP
-            )
-        install(TARGETS ${targetName}_proxy COMPONENT ${targetName}
-            LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
-            NAMELINK_SKIP
-            )
+        if (IsWindowsPlatform)
+            install(TARGETS ${targetName} COMPONENT ${targetName}
+                RUNTIME DESTINATION ${RDL2DSO_INSTALL_DIR}
+                )
+            install(TARGETS ${targetName}_proxy COMPONENT ${targetName}
+                RUNTIME DESTINATION ${RDL2DSO_INSTALL_DIR}
+                )
+        else()
+            install(TARGETS ${targetName} COMPONENT ${targetName}
+                LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
+                NAMELINK_SKIP
+                )
+            install(TARGETS ${targetName}_proxy COMPONENT ${targetName}
+                LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
+                NAMELINK_SKIP
+                )
+        endif()
         if (NOT ARG_TEST_DSO)
             install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
                 COMPONENT ${targetName} DESTINATION coredata
@@ -557,26 +574,48 @@ function(moonray_ispc_dso name)
            set(jsonExporterCommand rdl2_json_exporter)
        endif()
 
-       add_custom_command(TARGET ${name} POST_BUILD
-           COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
-           COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}>
-           COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}_proxy>
-           COMMAND ${jsonExporterCommand} --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
-               --in ${proxyDsoPath}
-               --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
-           COMMENT "Creating symlinks and generating JSON metadata for ${name}"
-           VERBATIM
-       )
+      if (IsWindowsPlatform)
+          add_custom_command(TARGET ${name} POST_BUILD
+              COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
+              COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${name}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}>
+              COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${name}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}_proxy>
+              COMMAND ${jsonExporterCommand} --dso_path ${CMAKE_BINARY_DIR}/rdl2dso
+                  --in ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}_proxy>
+                  --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+              COMMENT "Copying DSOs and generating JSON metadata for ${name}"
+              VERBATIM
+          )
+      else()
+          add_custom_command(TARGET ${name} POST_BUILD
+              COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
+              COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}>
+              COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}_proxy>
+              COMMAND ${jsonExporterCommand} --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
+                  --in ${proxyDsoPath}
+                  --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+              COMMENT "Creating symlinks and generating JSON metadata for ${name}"
+              VERBATIM
+          )
+      endif()
    endif()
     if (NOT ARG_SKIP_INSTALL)
-        install(TARGETS ${name} COMPONENT ${name}
-            LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
-            NAMELINK_SKIP
-        )
-        install(TARGETS ${name}_proxy COMPONENT ${name}
-            LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
-            NAMELINK_SKIP
-        )
+        if (IsWindowsPlatform)
+            install(TARGETS ${name} COMPONENT ${name}
+                RUNTIME DESTINATION ${RDL2DSO_INSTALL_DIR}
+            )
+            install(TARGETS ${name}_proxy COMPONENT ${name}
+                RUNTIME DESTINATION ${RDL2DSO_INSTALL_DIR}
+            )
+        else()
+            install(TARGETS ${name} COMPONENT ${name}
+                LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
+                NAMELINK_SKIP
+            )
+            install(TARGETS ${name}_proxy COMPONENT ${name}
+                LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
+                NAMELINK_SKIP
+            )
+        endif()
         if (NOT ARG_TEST_DSO)
             install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
                 COMPONENT ${name} DESTINATION coredata
