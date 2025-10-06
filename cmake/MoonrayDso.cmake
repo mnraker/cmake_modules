@@ -161,6 +161,10 @@ function(Moonray_dso_cxx_compile_definitions target)
         set(abi OPENVDB_ABI_VERSION_NUMBER=7)
     endif()
 
+    if(${TBB_VERSION} VERSION_GREATER_EQUAL "2021.0")
+        set(tbb_oneapi TBB_ONEAPI)
+    endif()
+
     target_compile_definitions(${target}
         PRIVATE
             ${GLOBAL_CPP_FLAGS}                 # TODO: add comment
@@ -179,6 +183,7 @@ function(Moonray_dso_cxx_compile_definitions target)
             PDI_USE_GLX_1_3                     # TODO: add comment
             _LIBCPP_ENABLE_CXX17_REMOVED_AUTO_PTR=1 # Clang - enable auto_ptr when targeting c++17
             _LIBCPP_ENABLE_CXX17_REMOVED_RANDOM_SHUFFLE=1 # Clang - ensure std::random_shuffle is available
+            ${tbb_oneapi}                       # define TBB_ONEAPI if TBB version >= 2021.0
 
             $<$<BOOL:${MOONRAY_DWA_BUILD}>:
                 DWA_OPENVDB                     # Enables some SIMD computations in DWA's version of openvdb
