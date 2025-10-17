@@ -53,7 +53,7 @@ function(Moonray_dso_cxx_compile_options target)
                 -march=core-avx2                # Specify the name of the target architecture
                 -mavx                           # x86 options
         )
-    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    elseif (MSVC)
         target_compile_options(${target}
             # TODO: Some if not all of these should probably be PUBLIC
             PRIVATE
@@ -300,7 +300,7 @@ function(moonray_dso_simple targetName)
     set_target_properties(${targetName}_proxy PROPERTIES
         PREFIX "" OUTPUT_NAME ${dsoName} SUFFIX ".so.proxy")
     if(IsWindowsPlatform)
-        set_target_properties(${targetName}_proxy PROPERTIES ARCHIVE_NAME ${targetName}_proxy)
+        set_target_properties(${targetName}_proxy PROPERTIES ARCHIVE_OUTPUT_NAME ${targetName}_proxy)
         set_target_properties(${targetName}_proxy PROPERTIES PDB_NAME ${targetName}_proxy)
     endif()
     target_sources(${targetName}_proxy PRIVATE ${attrs})
@@ -334,7 +334,7 @@ function(moonray_dso_simple targetName)
                --in $<TARGET_FILE:${targetName}_proxy>
                --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
                DEPENDS ${targetName}_proxy
-               BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+               #BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
                )
        else()
            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
@@ -517,7 +517,7 @@ function(moonray_ispc_dso name)
     set_target_properties(${name}_proxy PROPERTIES
         PREFIX "" OUTPUT_NAME ${name} SUFFIX ".so.proxy")
     if(IsWindowsPlatform)
-        set_target_properties(${name}_proxy PROPERTIES ARCHIVE_NAME ${name}_proxy)
+        set_target_properties(${name}_proxy PROPERTIES ARCHIVE_OUTPUT_NAME ${name}_proxy)
         set_target_properties(${name}_proxy PROPERTIES PDB_NAME ${name}_proxy)
     endif()
     target_compile_features(${name}_proxy
@@ -551,7 +551,7 @@ function(moonray_ispc_dso name)
                --in $<TARGET_FILE:${name}_proxy>
                --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
                DEPENDS ${name}_proxy
-               BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+               #BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
                )
        else()
            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
