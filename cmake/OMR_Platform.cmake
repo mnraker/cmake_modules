@@ -79,6 +79,7 @@ elseif(IsLinuxPlatform)
     set(GLOBAL_ISPC_INSTRUCTION_SETS avx2-i32x8)
 elseif(IsWindowsPlatform)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    set(GLOBAL_LINK_FLAGS /NODEFAULTLIB:libcmt.lib) # Ninja generator needs this
     set(GLOBAL_CPP_FLAGS __AVX__)
     set(GLOBAL_INSTALL_RPATH "$ORIGIN" "$ORIGIN/../lib64" "${COMPILER_LIBRARY_DIR}")
     set(GLOBAL_ISPC_FLAGS -D__x86_64__ -D__WIN32__ -D__AVX__ -D__AVX2__ --dllexport)
