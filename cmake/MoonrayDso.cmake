@@ -335,7 +335,10 @@ function(moonray_dso_simple targetName)
     endif()
 endfunction()
 
-if(EXISTS ${CMAKE_SOURCE_DIR}/cmake_modules/build_scripts/ispc_dso_generate)
+if(EXISTS ${CMAKE_SOURCE_DIR}/openmoonray/cmake_modules/build_scripts/ispc_dso_generate)
+    set(ISPC_DSO_GENERATE
+        ${CMAKE_SOURCE_DIR}/openmoonray/cmake_modules/build_scripts/ispc_dso_generate)
+elseif(EXISTS ${CMAKE_SOURCE_DIR}/cmake_modules/build_scripts/ispc_dso_generate)
     set(ISPC_DSO_GENERATE
         ${CMAKE_SOURCE_DIR}/cmake_modules/build_scripts/ispc_dso_generate)
 elseif(EXISTS $ENV{CMAKE_MODULES_ROOT}/build_scripts/ispc_dso_generate)
