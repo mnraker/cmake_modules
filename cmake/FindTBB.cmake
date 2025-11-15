@@ -459,6 +459,9 @@ endfunction()
 
 # Note: The order of these is important.
 #       Some of these macros create variables that are used in later calls.
+
+if (NOT TBB_FOUND)
+
 rk_tbb_list_components()
 rk_tbb_reuse_existing_target_components()
 
@@ -490,3 +493,5 @@ endif()
 
 set(TBB_FOUND TRUE)
 set(TBB_INCLUDE_DIRS "${TBB_INCLUDE_DIR}")
+
+endif() # if (NOT TBB_FOUND)
