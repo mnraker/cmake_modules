@@ -88,7 +88,6 @@ elseif(IsWindowsPlatform)
     set(GLOBAL_ISPC_ARCH x86-64)
     set(GLOBAL_ISPC_TARGET_OS windows)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1) # Windows needs to be explicit with exporting symbols
-    set(CMAKE_CXX_STANDARD 17)
 endif()
 
 # ================================================
