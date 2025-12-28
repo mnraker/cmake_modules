@@ -321,40 +321,40 @@ function(moonray_dso_simple targetName)
        endif()
        # Defines a custom command that when run generates the json files
        # needed for third party apps
-      if(IsWindowsPlatform)
-          # To run rdl2_json_exporter at build-time, ensure required runtime
-          # libraries are available to dynamically link with.
-          list(APPEND _env_list
-              ${CMAKE_PREFIX_PATH}/bin
-              ${CMAKE_PREFIX_PATH}/lib
-              $ENV{PATH}
-              $ENV{BUILD_DIR}/bin
-              $ENV{BUILD_DIR}/lib
-              $ENV{DEPS_ROOT}/bin
-              $ENV{DEPS_ROOT}/lib
-          )
-          cmake_path(CONVERT "${_env_list}" TO_NATIVE_PATH_LIST _native_env_list)
-          add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
-              POST_BUILD
-              COMMAND ${CMAKE_COMMAND} -E env "PATH=${_native_env_list}" rdl2_json_exporter
-              --dso_path "$<TARGET_FILE_DIR:${targetName}_proxy>"
-              --in $<TARGET_FILE:${targetName}_proxy>
-              --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
-              DEPENDS ${targetName}_proxy
-              BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
-              VERBATIM
-              )
-      else()
-          add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
-              POST_BUILD
-              COMMAND rdl2_json_exporter --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
-              --in $<TARGET_FILE:${targetName}_proxy>
-              --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
-              DEPENDS ${targetName}_proxy
-              BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
-              VERBATIM
-              )
-      endif()
+     if(IsWindowsPlatform)
+         # To run rdl2_json_exporter at build-time, ensure required runtime
+         # libraries are available to dynamically link with.
+         list(APPEND _env_list
+             ${CMAKE_PREFIX_PATH}/bin
+             ${CMAKE_PREFIX_PATH}/lib
+             $ENV{PATH}
+             $ENV{BUILD_DIR}/bin
+             $ENV{BUILD_DIR}/lib
+             $ENV{DEPS_ROOT}/bin
+             $ENV{DEPS_ROOT}/lib
+         )
+         cmake_path(CONVERT "${_env_list}" TO_NATIVE_PATH_LIST _native_env_list)
+         add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+             POST_BUILD
+             COMMAND ${CMAKE_COMMAND} -E env "PATH=${_native_env_list}" rdl2_json_exporter
+             --dso_path "$<TARGET_FILE_DIR:${targetName}_proxy>"
+             --in $<TARGET_FILE:${targetName}_proxy>
+             --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+             DEPENDS ${targetName}_proxy
+             BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+             VERBATIM
+             )
+     else()
+         add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+             POST_BUILD
+             COMMAND rdl2_json_exporter --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
+             --in $<TARGET_FILE:${targetName}_proxy>
+             --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+             DEPENDS ${targetName}_proxy
+             BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+             VERBATIM
+             )
+     endif()
        add_custom_target(coredata_${targetName} ALL DEPENDS
            ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json)
 
@@ -585,16 +585,16 @@ function(moonray_ispc_dso name)
            list(APPEND _env_list
                ${CMAKE_PREFIX_PATH}/bin
                ${CMAKE_PREFIX_PATH}/lib
-              $ENV{PATH}
-              $ENV{BUILD_DIR}/bin
-              $ENV{BUILD_DIR}/lib
-              $ENV{DEPS_ROOT}/bin
-              $ENV{DEPS_ROOT}/lib
-          )
-          cmake_path(CONVERT "${_env_list}" TO_NATIVE_PATH_LIST _native_env_list)
-          set(jsonExporterCommand
-              ${CMAKE_COMMAND} -E env "PATH=${_native_env_list}"
-              rdl2_json_exporter)
+             $ENV{PATH}
+             $ENV{BUILD_DIR}/bin
+             $ENV{BUILD_DIR}/lib
+             $ENV{DEPS_ROOT}/bin
+             $ENV{DEPS_ROOT}/lib
+         )
+         cmake_path(CONVERT "${_env_list}" TO_NATIVE_PATH_LIST _native_env_list)
+         set(jsonExporterCommand
+             ${CMAKE_COMMAND} -E env "PATH=${_native_env_list}"
+             rdl2_json_exporter)
        else()
            set(jsonExporterCommand rdl2_json_exporter)
        endif()
