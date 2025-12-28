@@ -325,6 +325,7 @@ function(moonray_dso_simple targetName)
                ${CMAKE_PREFIX_PATH}/bin
                ${CMAKE_PREFIX_PATH}/lib
                $ENV{BUILD_DIR}/bin $ENV{BUILD_DIR}/lib $ENV{DEPS_ROOT}/bin $ENV{DEPS_ROOT}/lib
+               $ENV{PATH}
                )
            list(JOIN _env_list ";" _env)
            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
@@ -542,6 +543,7 @@ function(moonray_ispc_dso name)
                ${CMAKE_PREFIX_PATH}/bin
                ${CMAKE_PREFIX_PATH}/lib
                $ENV{BUILD_DIR}/bin $ENV{BUILD_DIR}/lib $ENV{DEPS_ROOT}/bin $ENV{DEPS_ROOT}/lib
+               $ENV{PATH}
                )
            list(JOIN _env_list ";" _env)
            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
