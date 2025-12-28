@@ -329,7 +329,7 @@ function(moonray_dso_simple targetName)
            list(JOIN _env_list ";" _env)
            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
                POST_BUILD
-               COMMAND ${CMAKE_COMMAND} -E env "PATH=${_env}" "$<TARGET_FILE:rdl2_json_exporter>"
+               COMMAND ${CMAKE_COMMAND} -E env "PATH=${_env}" "rdl2_json_exporter"
                --dso_path "$<TARGET_FILE_DIR:${targetName}_proxy>"
                --in $<TARGET_FILE:${targetName}_proxy>
                --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
@@ -546,7 +546,7 @@ function(moonray_ispc_dso name)
            list(JOIN _env_list ";" _env)
            add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
                POST_BUILD
-               COMMAND ${CMAKE_COMMAND} -E env "PATH=${_env}" "$<TARGET_FILE:rdl2_json_exporter>"
+               COMMAND ${CMAKE_COMMAND} -E env "PATH=${_env}" "rdl2_json_exporter"
                --dso_path "$<TARGET_FILE_DIR:${name}_proxy>"
                --in $<TARGET_FILE:${name}_proxy>
                --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
