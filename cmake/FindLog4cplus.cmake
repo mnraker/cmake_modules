@@ -16,7 +16,7 @@ else()
     set(Log4cplus_INCLUDE_DIRS ${Log4cplus_INCLUDE_DIR}/..)
 endif()
 
-if(JSONCPP_USE_STATIC_LIBS)
+if(LOG4CPLUS_USE_STATIC_LIBS)
     find_library(Log4cplus_LIBRARIES
         NAMES log4cplus log4cplusU
         HINTS $ENV{LOG4CPLUS_ROOT}/lib $ENV{Log4cplus_ROOT}/lib /usr/local/lib)
@@ -28,6 +28,9 @@ else()
     find_file(Log4cplus_DLLS
         NAMES log4cplus.dll log4cplusU.dll
         HINTS $ENV{LOG4CPLUS_ROOT}/lib $ENV{Log4cplus_ROOT}/lib $ENV{LOG4CPLUS_ROOT}/bin $ENV{Log4cplus_ROOT}/bin)
+  if(NOT IsWindowsPlatform)
+    set(Log4cplus_DLLS ${Log4cplus_LIBRARIES})
+  endif()
 endif()
 
 mark_as_advanced(Log4cplus_INCLUDE_DIR Log4cplus_INCLUDE_DIRS Log4cplus_LIBRARIES)
@@ -38,11 +41,12 @@ find_package_handle_standard_args(Log4cplus
 )
 
 if (Log4cplus_FOUND AND NOT TARGET Log4cplus::Log4cplus)
-    if(JSONCPP_USE_STATIC_LIBS)
+    if(LOG4CPLUS_USE_STATIC_LIBS)
         add_library(Log4cplus::Log4cplus STATIC IMPORTED)
         set_target_properties(Log4cplus::Log4cplus PROPERTIES
             IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
             IMPORTED_IMPLIB "${Log4cplus_LIBRARIES}"
+            IMPORTED_LOCATION "${Log4cplus_LIBRARIES}"
             INTERFACE_INCLUDE_DIRECTORIES "${Log4cplus_INCLUDE_DIRS}")
     else()
         add_library(Log4cplus::Log4cplus SHARED IMPORTED)
