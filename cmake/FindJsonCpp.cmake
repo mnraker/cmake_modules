@@ -35,14 +35,16 @@ if(JSONCPP_USE_STATIC_LIBS)
     NAMES json jsoncpp jsoncpp_static
     HINTS $ENV{JSONCPP_ROOT}/lib $ENV{JsonCpp_ROOT}/lib /usr/local/lib)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ${_jsoncpp_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
-
+else()
+  find_library(JsonCpp_LIBRARIES
+    NAMES json jsoncpp jsoncpp_static
+    HINTS $ENV{JSONCPP_ROOT}/lib $ENV{JsonCpp_ROOT}/lib /usr/local/lib)
   find_file(JsonCpp_DLLS
     NAMES json.dll jsoncpp.dll
     HINTS $ENV{JSONCPP_ROOT}/lib $ENV{JsonCpp_ROOT}/lib $ENV{JSONCPP_ROOT}/bin $ENV{JsonCpp_ROOT}/bin)
-else()
-  find_library(JsonCpp_LIBRARIES
-    NAMES json jsoncpp_static
-    HINTS $ENV{JSONCPP_ROOT}/lib $ENV{JsonCpp_ROOT}/lib /usr/local/lib)
+  if(NOT IsWindowsPlatform)
+    set(JsonCpp_DLLS ${JsonCpp_LIBRARIES})
+  endif()
 endif()
 
 mark_as_advanced(JsonCpp_INCLUDE_DIR JsonCpp_INCLUDE_DIRS JsonCpp_LIBRARIES)
@@ -58,6 +60,7 @@ if (JsonCpp_FOUND AND NOT TARGET JsonCpp::JsonCpp)
     set_target_properties(JsonCpp::JsonCpp PROPERTIES
       IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
       IMPORTED_IMPLIB "${JsonCpp_LIBRARIES}"
+      IMPORTED_LOCATION "${JsonCpp_LIBRARIES}"
       INTERFACE_INCLUDE_DIRECTORIES "${JsonCpp_INCLUDE_DIRS}")
   else()
     add_library(JsonCpp::JsonCpp SHARED IMPORTED)
