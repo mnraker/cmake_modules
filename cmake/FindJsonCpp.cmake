@@ -31,13 +31,18 @@ set(JsonCpp_INCLUDE_DIRS ${JsonCpp_INCLUDE_DIR}/..)
 if(JSONCPP_USE_STATIC_LIBS)
   set(_jsoncpp_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES .a .lib)
+  if(NOT IsWindowsPlatform)
+    set(_JSONCPP_STATIC_NAMES json jsoncpp)
+  else()
+    set(_JSONCPP_STATIC_NAMES jsoncpp_static)
+  endif()
   find_library(JsonCpp_LIBRARIES
-    NAMES json jsoncpp jsoncpp_static
+    NAMES ${_JSONCPP_STATIC_NAMES}
     HINTS $ENV{JSONCPP_ROOT}/lib $ENV{JsonCpp_ROOT}/lib /usr/local/lib)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ${_jsoncpp_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
 else()
   find_library(JsonCpp_LIBRARIES
-    NAMES json jsoncpp jsoncpp_static
+    NAMES json jsoncpp
     HINTS $ENV{JSONCPP_ROOT}/lib $ENV{JsonCpp_ROOT}/lib /usr/local/lib)
   find_file(JsonCpp_DLLS
     NAMES json.dll jsoncpp.dll
