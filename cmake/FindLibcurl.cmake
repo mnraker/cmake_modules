@@ -10,7 +10,7 @@ find_path(Libcurl_INCLUDE_DIR
 set(Libcurl_INCLUDE_DIRS ${Libcurl_INCLUDE_DIR}/..)
 
 find_library(Libcurl_LIBRARY
-  NAMES libcurl.so.4
+  NAMES libcurl.so.4 libcurl.4.dylib
   HINTS $ENV{LIBCURL_ROOT}/lib $ENV{Libcurl_ROOT}/lib /lib64)
 
 mark_as_advanced(Libcurl_INCLUDE_DIRS Libcurl_LIBRARY)
