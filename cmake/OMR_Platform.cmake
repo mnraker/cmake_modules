@@ -90,7 +90,6 @@ elseif(IsWindowsPlatform)
     set(GLOBAL_ISPC_INSTRUCTION_SETS avx2-i32x8)
     set(GLOBAL_ISPC_ARCH x86-64)
     set(GLOBAL_ISPC_TARGET_OS windows)
-
     set(ISPC_COMPILER "$ENV{REZ_ISPC_ROOT}/bin/ispc.exe" CACHE STRING "Path to ISPC compiler")
 
     foreach(_v
@@ -102,8 +101,7 @@ elseif(IsWindowsPlatform)
     )
         if(DEFINED ${_v})
             string(REGEX REPLACE "(^|[ \t])/[Ee][Hh][^ \t]*" "" _tmp "${${_v}}")
-            string(STRIP "${_tmp}" _tmp)
-            set(${_v} "${_tmp}" CACHE STRING "ISPC flags (sanitized)" FORCE)
+            set(${_v} "${_tmp}" CACHE STRING "" FORCE)
         endif()
     endforeach()
 
@@ -115,7 +113,11 @@ elseif(IsWindowsPlatform)
         set(CMAKE_ISPC_COMPILE_OBJECT "${CMAKE_ISPC_COMPILE_OBJECT}" CACHE STRING "ISPC compile rule (sanitized)" FORCE)
     endif()
 
-    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1) # Windows needs to be explicit with exporting symbols
+
+    # Workaround for Visual Studio 2022 v17.10+ constexpr mutex constructor change,
+    # while remaining compatible with older vfxplatform-matching runtimes.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
 endif()
 
 # ================================================
