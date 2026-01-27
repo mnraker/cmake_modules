@@ -3,7 +3,7 @@
 
 find_path(Libuuid_INCLUDE_DIRS
   NAMES uuid.h
-  HINTS $ENV{LIBUUID_ROOT}/include /usr/include/uuid)
+  HINTS $ENV{LIBUUID_ROOT}/include $ENV{LIBUUID_ROOT}/include/uuid /usr/include/uuid)
 find_library(Libuuid_LIBRARY
   NAMES uuid
   HINTS $ENV{LIBUUID_ROOT}/lib /lib64)
