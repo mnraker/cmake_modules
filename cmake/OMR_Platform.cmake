@@ -91,6 +91,10 @@ elseif(IsWindowsPlatform)
     set(GLOBAL_ISPC_ARCH x86-64)
     set(GLOBAL_ISPC_TARGET_OS windows)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1) # Windows needs to be explicit with exporting symbols
+    # The _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR macro is a workaround for a breaking change in
+    # Microsoft's Visual Studio 2022 (v17.10+) and to be more compatible with older runtimes
+    # eg. software which adheres to vfxplatform versions.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
 endif()
 
 # ================================================
