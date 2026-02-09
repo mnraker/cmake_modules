@@ -160,6 +160,7 @@ def gen_attributes_cc(shader,ns):
     text += 'using namespace scene_rdl2::rdl2;\n'
     text += 'RDL2_DSO_ATTR_DECLARE_NS(' + ns + ')\n'
     for attr, data in shader['attributes'].items():
+        text += 'RDL2_DSO_EXPORT '
         if 'multi' in data:
             for i in range(int(data['multi'])):
                 multiAttr = attr + str(i)
@@ -214,7 +215,7 @@ def declareISPCAttributeKey(data, attr, ns):
     if keyType != 'UNKNOWN_ATTR_TYPE':
         text = ('namespace ' + ns + ' { extern AttributeKey<%s> %s;' %
                  (data['type'], attr) + ' }\n')
-        text += ('%s *%s = (%s *) &%s::%s;\n' %
+        text += ('extern "C" %s *%s = (%s *) &%s::%s;\n' %
                  (keyType, attr, keyType, ns, attr))
     else:
         text = ''

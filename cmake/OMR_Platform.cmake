@@ -36,6 +36,7 @@ endif()
 
 if(IsLinuxPlatform)
     list(APPEND GLOBAL_COMPILE_DEFINITIONS PLATFORM_LINUX)
+    list(APPEND GLOBAL_COMPILE_DEFINITIONS NUMA_SUPPORT)
 endif()
 
 if(IsDarwinPlatform)
@@ -65,24 +66,44 @@ if(IsDarwinPlatform)
     set(CMAKE_XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "-o linker-signed")
     set(GLOBAL_LINK_FLAGS "-Wl,-ld_classic")
     set(GLOBAL_INSTALL_RPATH "@loader_path/" "@loader_path/../lib")
-    set(GLOBAL_ISPC_FLAGS -D__aarch64__ -D__APPLE__ -D__ARM_NEON__)
+    set(GLOBAL_ISPC_FLAGS -D__aarch64__ -D__APPLE__ -D__ARM_NEON__ --pic)
     set(GLOBAL_ISPC_INSTRUCTION_SETS neon-i32x4)
     set(CMAKE_OSX_ARCHITECTURES arm64)
-else() # Linux/Windows
+    set(GLOBAL_ISPC_ARCH aarch64)
+    set(GLOBAL_ISPC_TARGET_OS macos)
+elseif(IsLinuxPlatform)
+    set(ISPC_COMPILER $ENV{ISPC} CACHE STRING "Path to ISPC compiler")
     set(GLOBAL_CPP_FLAGS __AVX__)
     set(GLOBAL_LINK_FLAGS "-Wl,--enable-new-dtags")
     set(GLOBAL_INSTALL_RPATH "$ORIGIN" "$ORIGIN/../lib64" "${COMPILER_LIBRARY_DIR}")
+    set(GLOBAL_ISPC_FLAGS --pic)
     set(GLOBAL_ISPC_INSTRUCTION_SETS avx2-i32x8)
+    set(GLOBAL_ISPC_ARCH x86-64)
+    set(GLOBAL_ISPC_TARGET_OS linux)
+elseif(IsWindowsPlatform)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    set(GLOBAL_LINK_FLAGS /NODEFAULTLIB:libcmt.lib) # Ninja generator needs this
+    set(GLOBAL_CPP_FLAGS __AVX__)
+    set(GLOBAL_INSTALL_RPATH "$ORIGIN" "$ORIGIN/../lib64" "${COMPILER_LIBRARY_DIR}")
+    set(GLOBAL_ISPC_FLAGS -D__x86_64__ -D__WIN32__ -D__AVX__ -D__AVX2__ --dllexport)
+    set(GLOBAL_ISPC_INSTRUCTION_SETS avx2-i32x8)
+    set(ISPC_COMPILER $ENV{ISPC} CACHE STRING "Path to ISPC compiler")
+    set(GLOBAL_ISPC_ARCH x86-64)
+    set(GLOBAL_ISPC_TARGET_OS windows)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1) # Windows needs to be explicit with exporting symbols
+    # The _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR macro is a workaround for a breaking change in
+    # Microsoft's Visual Studio 2022 (v17.10+) and to be more compatible with older runtimes
+    # eg. software which adheres to vfxplatform versions.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
 endif()
 
 # ================================================
 # Options
 # ================================================
-if(IsLinuxPlatform)
+if(IsLinuxPlatform OR IsWindowsPlatform)
     option(MOONRAY_USE_OPTIX "Whether to enable XPU mode and Optix denoising" YES)
 elseif(IsDarwinPlatform)
     option(MOONRAY_USE_METAL "Whether to enable XPU mode and OIDN Metal denoising" YES)
 endif()
-
 
 

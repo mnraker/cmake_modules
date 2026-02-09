@@ -53,6 +53,13 @@ function(Moonray_dso_cxx_compile_options target)
                 -march=core-avx2                # Specify the name of the target architecture
                 -mavx                           # x86 options
         )
+    elseif (MSVC)
+        target_compile_options(${target}
+            # TODO: Some if not all of these should probably be PUBLIC
+            PRIVATE
+                /arch:AVX2                      # Specify the name of the target architecture
+                /Zc:__cplusplus                 # Make sure the preprocessor is defined to check for C++ version
+        )
     endif()
 endfunction()
 
@@ -60,7 +67,6 @@ function(Moonray_dso_ispc_compile_options target)
     set(commonOptions
         ${GLOBAL_ISPC_FLAGS}
         --opt=force-aligned-memory          # always issue "aligned" vector load and store instructions
-        --pic                               # Generate position-independent code.  Ignored for Windows target
         #--werror                            # Treat warnings as errors
         --wno-perf                          # Don't issue warnings related to performance-related issues
     )
@@ -74,6 +80,8 @@ function(Moonray_dso_ispc_compile_options target)
         get_target_property(ISPC_HEADER_SUFFIX ${target} ISPC_HEADER_SUFFIX)
         get_target_property(ISPC_HEADER_DIRECTORY ${target} ISPC_HEADER_DIRECTORY)
         get_target_property(ISPC_INSTRUCTION_SETS ${target} ISPC_INSTRUCTION_SETS)
+        get_target_property(ISPC_ARCH ${target} ISPC_ARCH)
+        get_target_property(ISPC_TARGET_OS ${target} ISPC_TARGET_OS)
 
         set(configDepFlags "")
         if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -111,9 +119,9 @@ function(Moonray_dso_ispc_compile_options target)
                     -o ${objOut}
                     -h "./${ISPC_HEADER_DIRECTORY}/${srcName}${ISPC_HEADER_SUFFIX}"
                     -M -MF ${depFile}
-                    --arch=aarch64                      # TODO: hardcoded...
+                    --arch=${ISPC_ARCH}
                     --target=${ISPC_INSTRUCTION_SETS}
-                    --target-os=macos
+                    --target-os=${ISPC_TARGET_OS}
                     ${commonOptions}
                     ${configDepFlags}
                     "-I$<JOIN:$<TARGET_PROPERTY:${target},INCLUDE_DIRECTORIES>,;-I>"
@@ -123,8 +131,11 @@ function(Moonray_dso_ispc_compile_options target)
                 DEPFILE ${depFile}
                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${src})
             list(APPEND ISPC_TARGET_OBJECTS ${objOut})
+            #set_source_files_properties(${ISPC_HEADER_DIRECTORY}/${srcName}${ISPC_HEADER_SUFFIX} PROPERTIES GENERATED)
         endforeach()
         target_link_libraries(${target}
+                PRIVATE ${ISPC_TARGET_OBJECTS})
+        target_sources(${target}
                 PRIVATE ${ISPC_TARGET_OBJECTS})
         add_custom_target(${target}_ispc_dep DEPENDS ${ISPC_TARGET_OBJECTS})
         add_dependencies(${target} ${target}_ispc_dep)
@@ -171,7 +182,7 @@ function(Moonray_dso_cxx_compile_definitions target)
             BOOST_FILESYSTEM_VERSION=3          # TODO: add comment
             DWA_BOOST_VERSION=1073000           # TODO: add comment
             OPENVDB_USE_BLOSC                   # TODO: Move this to where it is needed?
-            OPENVDB_USE_LOG4CPLUS               # TODO: Move this to where it is needed?
+            $<IF:$<NOT:$<BOOL:${IsWindowsPlatform}>>,OPENVDB_USE_LOG4CPLUS,> # TODO: Alex get OpenVDB to work with LOG4CPLUS windows
             DWREAL_IS_DOUBLE=1                  # TODO: add comment
             dwreal=double                       # TODO: add comment
             GL_GLEXT_PROTOTYPES=1               # TODO: add comment
@@ -184,6 +195,10 @@ function(Moonray_dso_cxx_compile_definitions target)
             _LIBCPP_ENABLE_CXX17_REMOVED_AUTO_PTR=1 # Clang - enable auto_ptr when targeting c++17
             _LIBCPP_ENABLE_CXX17_REMOVED_RANDOM_SHUFFLE=1 # Clang - ensure std::random_shuffle is available
             ${tbb_oneapi}                       # define TBB_ONEAPI if TBB version >= 2021.0
+            BOOST_ALL_DYN_LINK                  # MSVC
+            BOOST_ALL_NO_LIB                    # MSVC
+            NOMINMAX                            # MSVC
+            _USE_MATH_DEFINES                   # MSVC
 
             $<$<BOOL:${MOONRAY_DWA_BUILD}>:
                 DWA_OPENVDB                     # Enables some SIMD computations in DWA's version of openvdb
@@ -213,17 +228,18 @@ function(Moonray_dso_cxx_compile_features target)
 endfunction()
 
 function(Moonray_dso_link_options target)
-    if(NOT IsDarwinPlatform)
-        target_link_options(${target}
-            PRIVATE
-                -Wl,--enable-new-dtags              # Use RUNPATH instead of RPATH
-        )
-    else()
+    if(IsWindowsPlatform)
+    elseif(IsDarwinPlatform)
         target_link_options(${target}
             PRIVATE
                 -Wl,-ld_classic
                 -undefined dynamic_lookup
     )
+    else()
+        target_link_options(${target}
+            PRIVATE
+                -Wl,--enable-new-dtags              # Use RUNPATH instead of RPATH
+        )
     endif()
 endfunction()
 
@@ -269,8 +285,8 @@ function(moonray_dso_simple targetName)
 
     # full dso
     set_target_properties(${targetName} PROPERTIES PREFIX "") # removes "lib" prefix from .so
-    if(IsDarwinPlatform)
-        set_target_properties(${targetName} PROPERTIES SUFFIX ".so") # switch .dylib for .so
+    if(IsDarwinPlatform OR IsWindowsPlatform)
+        set_target_properties(${targetName} PROPERTIES SUFFIX ".so") # switch .dylib/.dll for .so
     endif()
     target_sources(${targetName} PRIVATE ${src})
     target_include_directories(${targetName} PRIVATE ${includeDir})
@@ -283,6 +299,10 @@ function(moonray_dso_simple targetName)
     # proxy dso
     set_target_properties(${targetName}_proxy PROPERTIES
         PREFIX "" OUTPUT_NAME ${dsoName} SUFFIX ".so.proxy")
+    if(IsWindowsPlatform)
+        set_target_properties(${targetName}_proxy PROPERTIES ARCHIVE_OUTPUT_NAME ${targetName}_proxy)
+        set_target_properties(${targetName}_proxy PROPERTIES PDB_NAME ${targetName}_proxy)
+    endif()
     target_sources(${targetName}_proxy PRIVATE ${attrs})
     target_include_directories(${targetName}_proxy PRIVATE ${includeDir})
     target_link_libraries(${targetName}_proxy PUBLIC SceneRdl2::scene_rdl2)
@@ -298,35 +318,73 @@ function(moonray_dso_simple targetName)
        endif()
        # Defines a custom command that when run generates the json files
        # needed for third party apps
-       add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
-           POST_BUILD
-           COMMAND rdl2_json_exporter --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
-           --in $<TARGET_FILE:${targetName}_proxy>
-           --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
-           DEPENDS ${targetName}_proxy
-           BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
-           VERBATIM
-           )
+       if(IsWindowsPlatform)
+           # To run json_exporter at build-time, we need to make sure that all runtime
+           # libraries are available to dynamically link with
+           list(APPEND _env_list
+               ${CMAKE_PREFIX_PATH}/bin
+               ${CMAKE_PREFIX_PATH}/lib
+               $ENV{BUILD_DIR}/bin $ENV{BUILD_DIR}/lib $ENV{DEPS_ROOT}/bin $ENV{DEPS_ROOT}/lib
+               $ENV{PATH}
+               )
+           list(JOIN _env_list ";" _env)
+           add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+               POST_BUILD
+               COMMAND ${CMAKE_COMMAND} -E env "PATH=${_env}" "rdl2_json_exporter"
+               --dso_path "$<TARGET_FILE_DIR:${targetName}_proxy>"
+               --in $<TARGET_FILE:${targetName}_proxy>
+               --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+               DEPENDS ${targetName}_proxy
+               #BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+               )
+       else()
+           add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+               POST_BUILD
+               COMMAND rdl2_json_exporter --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
+               --in $<TARGET_FILE:${targetName}_proxy>
+               --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+               DEPENDS ${targetName}_proxy
+               BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+               VERBATIM
+               )
+       endif()
        add_custom_target(coredata_${targetName} ALL DEPENDS
            ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json)
 
        # copy resulting DSOs to <build>/rdl2dso dir to be found by tests
-       add_custom_command(TARGET ${targetName} POST_BUILD
-           COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
-           COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${targetName}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}>
-           COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${targetName}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}_proxy>
-       )
+       if (IsWindowsPlatform)
+           add_custom_command(TARGET ${targetName} POST_BUILD
+               COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
+               COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${targetName}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}>
+               COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${targetName}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}_proxy>
+           )
+       else()
+           add_custom_command(TARGET ${targetName} POST_BUILD
+               COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
+               COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${targetName}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}>
+               COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${targetName}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${targetName}_proxy>
+           )
+       endif()
    endif()
 
     if (NOT ARG_SKIP_INSTALL)
-        install(TARGETS ${targetName} COMPONENT ${targetName}
-            LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
-            NAMELINK_SKIP
-            )
-        install(TARGETS ${targetName}_proxy COMPONENT ${targetName}
-            LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
-            NAMELINK_SKIP
-            )
+        if (IsWindowsPlatform)
+            install(TARGETS ${targetName} COMPONENT ${targetName}
+                RUNTIME DESTINATION ${RDL2DSO_INSTALL_DIR}
+                )
+            install(TARGETS ${targetName}_proxy COMPONENT ${targetName}
+                RUNTIME DESTINATION ${RDL2DSO_INSTALL_DIR}
+                )
+        else()
+            install(TARGETS ${targetName} COMPONENT ${targetName}
+                LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
+                NAMELINK_SKIP
+                )
+            install(TARGETS ${targetName}_proxy COMPONENT ${targetName}
+                LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
+                NAMELINK_SKIP
+                )
+        endif()
         if (NOT ARG_TEST_DSO)
             install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
                 COMPONENT ${targetName} DESTINATION coredata
@@ -398,7 +456,7 @@ function(moonray_ispc_dso name)
 
     add_custom_target(${name}_gen_files
         COMMAND
-            ${ISPC_DSO_GEN_SCRIPT} ${jsonSrc}
+            python ${ISPC_DSO_GEN_SCRIPT} ${jsonSrc}
             -o ${genDir} -i ${jsonIncludeDir}
         BYPRODUCTS
             ${genDir}/attributes.cc
@@ -422,6 +480,8 @@ function(moonray_ispc_dso name)
         ISPC_HEADER_SUFFIX _ispc_stubs.h
         ISPC_HEADER_DIRECTORY /${relBinDir}
         ISPC_INSTRUCTION_SETS ${GLOBAL_ISPC_INSTRUCTION_SETS}
+        ISPC_ARCH ${GLOBAL_ISPC_ARCH}
+        ISPC_TARGET_OS ${GLOBAL_ISPC_TARGET_OS}
         LINKER_LANGUAGE CXX
     )
     target_link_libraries(${objLib} PRIVATE ${ARG_DEPENDENCIES})
@@ -457,6 +517,10 @@ function(moonray_ispc_dso name)
     add_library(${name}_proxy SHARED "")
     set_target_properties(${name}_proxy PROPERTIES
         PREFIX "" OUTPUT_NAME ${name} SUFFIX ".so.proxy")
+    if(IsWindowsPlatform)
+        set_target_properties(${name}_proxy PROPERTIES ARCHIVE_OUTPUT_NAME ${name}_proxy)
+        set_target_properties(${name}_proxy PROPERTIES PDB_NAME ${name}_proxy)
+    endif()
     target_compile_features(${name}_proxy
         PRIVATE cxx_std_17)
     target_sources(${name}_proxy PRIVATE ${genDir}/attributes.cc)
@@ -472,35 +536,73 @@ function(moonray_ispc_dso name)
        endif()
        # Defines a custom command that when run generates the json files
        # needed for third party apps
-       add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
-           POST_BUILD
-           COMMAND rdl2_json_exporter --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
-           --in $<TARGET_FILE:${name}_proxy>
-           --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
-           DEPENDS ${name}_proxy
-           BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
-           VERBATIM
-           )
+       if(IsWindowsPlatform)
+           # To run json_exporter at build-time, we need to make sure that all runtime
+           # libraries are available to dynamically link with
+           list(APPEND _env_list
+               ${CMAKE_PREFIX_PATH}/bin
+               ${CMAKE_PREFIX_PATH}/lib
+               $ENV{BUILD_DIR}/bin $ENV{BUILD_DIR}/lib $ENV{DEPS_ROOT}/bin $ENV{DEPS_ROOT}/lib
+               $ENV{PATH}
+               )
+           list(JOIN _env_list ";" _env)
+           add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+               POST_BUILD
+               COMMAND ${CMAKE_COMMAND} -E env "PATH=${_env}" "rdl2_json_exporter"
+               --dso_path "$<TARGET_FILE_DIR:${name}_proxy>"
+               --in $<TARGET_FILE:${name}_proxy>
+               --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+               DEPENDS ${name}_proxy
+               #BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+               )
+       else()
+           add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+               POST_BUILD
+               COMMAND rdl2_json_exporter --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
+               --in $<TARGET_FILE:${name}_proxy>
+               --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+               DEPENDS ${name}_proxy
+               BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+               VERBATIM
+               )
+       endif()
        add_custom_target(coredata_${name} ALL DEPENDS
            ${CMAKE_CURRENT_BINARY_DIR}/${name}.json)
 
        # copy resulting DSO to <build>/rdl2dso dir to be found by tests
-       add_custom_command(TARGET ${name} POST_BUILD
-           COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
-           COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}>
-           COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}_proxy>
-       )
+       if (IsWindowsPlatform)
+          add_custom_command(TARGET ${name} POST_BUILD
+              COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
+              COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${name}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}>
+              COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${name}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}_proxy>
+          )
+       else()
+          add_custom_command(TARGET ${name} POST_BUILD
+              COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
+              COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}>
+              COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}_proxy>
+          )
+       endif()
    endif()
 
     if (NOT ARG_SKIP_INSTALL)
-        install(TARGETS ${name} COMPONENT ${name}
-            LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
-            NAMELINK_SKIP
-        )
-        install(TARGETS ${name}_proxy COMPONENT ${name}
-            LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
-            NAMELINK_SKIP
-        )
+        if (IsWindowsPlatform)
+            install(TARGETS ${name} COMPONENT ${name}
+                RUNTIME DESTINATION ${RDL2DSO_INSTALL_DIR}
+            )
+            install(TARGETS ${name}_proxy COMPONENT ${name}
+                RUNTIME DESTINATION ${RDL2DSO_INSTALL_DIR}
+            )
+        else()
+            install(TARGETS ${name} COMPONENT ${name}
+                LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
+                NAMELINK_SKIP
+            )
+            install(TARGETS ${name}_proxy COMPONENT ${name}
+                LIBRARY DESTINATION ${RDL2DSO_INSTALL_DIR}
+                NAMELINK_SKIP
+            )
+        endif()
         if (NOT ARG_TEST_DSO)
             install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
                 COMPONENT ${name} DESTINATION coredata
