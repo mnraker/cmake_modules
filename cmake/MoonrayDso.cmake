@@ -66,8 +66,10 @@ function(Moonray_dso_ispc_compile_options target)
     )
     set_property(TARGET ${target}
                  PROPERTY TARGET_OBJECTS $<TARGET_OBJECTS:${target}>)
+    # Custom property to track the ISPC dependency target (e.g., ${target}_ispc_dep)
+    # for ensuring proper build order when ISPC compilation is required
     set_property(TARGET ${target}
-                 PROPERTY DEPENDENCY "")
+                 PROPERTY ISPC_DEP_TARGET "")
     check_language(ISPC)
     if(NOT CMAKE_ISPC_COMPILER)
         get_target_property(SOURCES ${target} SOURCES)
@@ -128,8 +130,9 @@ function(Moonray_dso_ispc_compile_options target)
                 PRIVATE ${ISPC_TARGET_OBJECTS})
         add_custom_target(${target}_ispc_dep DEPENDS ${ISPC_TARGET_OBJECTS})
         add_dependencies(${target} ${target}_ispc_dep)
+        # Store the ISPC dependency target name for later retrieval
         set_property(TARGET ${target}
-                 PROPERTY DEPENDENCY ${target}_ispc_dep)
+                 PROPERTY ISPC_DEP_TARGET ${target}_ispc_dep)
         set_property(
                 TARGET ${target}
                 PROPERTY
@@ -390,33 +393,49 @@ function(moonray_ispc_dso name)
         list(APPEND jsonIncludeDir ${ARG_JSON_INCLUDE_DIRS})
     endif()
 
-    # Make sure the directory exists to place the generated files
-    add_custom_target(${name}_make_build_dir
-        COMMAND
-            ${CMAKE_COMMAND} -E make_directory ${genDir}
-    )
-
-    add_custom_target(${name}_gen_files
-        COMMAND
-            ${ISPC_DSO_GEN_SCRIPT} ${jsonSrc}
-            -o ${genDir} -i ${jsonIncludeDir}
-        BYPRODUCTS
+    # Generate C++ and ISPC source files from JSON metadata.
+    # Uses add_custom_command with OUTPUT to track file dependencies and
+    # avoid unnecessary rebuilds when content hasn't changed.
+    add_custom_command(
+        OUTPUT
             ${genDir}/attributes.cc
             ${genDir}/attributesISPC.cc
             ${genDir}/attributes.isph
             ${genDir}/labels.h
             ${genDir}/labels.isph
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${genDir}
+        COMMAND
+            ${ISPC_DSO_GEN_SCRIPT} ${jsonSrc}
+            -o ${genDir} -i ${jsonIncludeDir}
         DEPENDS
-            ${name}_make_build_dir
-            # ${jsonSrc}
+            ${jsonSrc}
         WORKING_DIRECTORY
             ${CMAKE_CURRENT_LIST_DIR}
+        COMMENT
+            "Generating DSO files from ${jsonSrc}"
+    )
+
+    # Mark files as generated so CMake doesn't expect them to exist at configure time
+    set_source_files_properties(
+        ${genDir}/attributes.cc
+        ${genDir}/attributesISPC.cc
+        ${genDir}/attributes.isph
+        ${genDir}/labels.h
+        ${genDir}/labels.isph
+        PROPERTIES
+            GENERATED TRUE
     )
 
     # compile ispc to .o
     set(objLib ${name}_objlib)
     add_library(${objLib} OBJECT ${ispcSrc} ${genDir}/attributes.isph)
     target_include_directories(${objLib} PRIVATE ${genDir})
+    
+    # ISPC sources must wait for generated headers before compilation
+    set_property(SOURCE ${ispcSrc}
+        PROPERTY OBJECT_DEPENDS ${genDir}/attributes.isph ${genDir}/labels.isph)
+    
     file(RELATIVE_PATH relBinDir ${CMAKE_BINARY_DIR} ${genDir})
     set_target_properties(${objLib} PROPERTIES
         ISPC_HEADER_SUFFIX _ispc_stubs.h
@@ -427,11 +446,23 @@ function(moonray_ispc_dso name)
     target_link_libraries(${objLib} PRIVATE ${ARG_DEPENDENCIES})
     Moonray_dso_ispc_compile_options(${objLib})
 
-    get_target_property(objLibDeps ${objLib} DEPENDENCY)
-    if(NOT objLibDeps STREQUAL "")
+    # Ensure ISPC header generation completes before ISPC compilation starts
+    get_target_property(objLibIspcDep ${objLib} ISPC_DEP_TARGET)
+    if(objLibIspcDep)
+        add_custom_command(
+            OUTPUT ${genDir}/.ispc_headers_ready
+            COMMAND ${CMAKE_COMMAND} -E touch ${genDir}/.ispc_headers_ready
+            DEPENDS ${genDir}/attributes.isph ${genDir}/labels.isph
+            COMMENT "Waiting for ISPC header generation"
+        )
+        add_custom_target(${name}_ispc_headers_dep DEPENDS ${genDir}/.ispc_headers_ready)
+        add_dependencies(${objLibIspcDep} ${name}_ispc_headers_dep)
+    endif()
+
+    get_target_property(objLibDeps ${objLib} ISPC_DEP_TARGET)
+    if(objLibDeps)
         add_dependencies(${objLibDeps}
-            ${ARG_DEPENDENCIES}
-            ${name}_gen_files)
+            ${ARG_DEPENDENCIES})
     endif()
 
     # full dso
@@ -462,33 +493,31 @@ function(moonray_ispc_dso name)
     target_sources(${name}_proxy PRIVATE ${genDir}/attributes.cc)
     target_include_directories(${name}_proxy PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(${name}_proxy PUBLIC SceneRdl2::scene_rdl2)
+
+    # Xcode requires both targets using custom command outputs to share a common dependency
+    add_dependencies(${name}_proxy ${objLib})
+
     Moonray_dso_cxx_compile_options(${name}_proxy)
     Moonray_dso_link_options(${name}_proxy)
 
-   # json class file
+   # Create symlinks in rdl2dso/ for tests and generate JSON metadata.
+   # JSON generation in POST_BUILD avoids circular dependencies with Xcode.
    if (NOT ARG_TEST_DSO)
        if (XCODE)
-           set(configDir "${CMAKE_BUILD_TYPE}")
+           set(configDir "$<CONFIG>")  # "Debug" or "Release"
+       else()
+           set(configDir "")
        endif()
-       # Defines a custom command that when run generates the json files
-       # needed for third party apps
-       add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
-           POST_BUILD
-           COMMAND rdl2_json_exporter --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
-           --in $<TARGET_FILE:${name}_proxy>
-           --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
-           DEPENDS ${name}_proxy
-           BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
-           VERBATIM
-           )
-       add_custom_target(coredata_${name} ALL DEPENDS
-           ${CMAKE_CURRENT_BINARY_DIR}/${name}.json)
-
-       # copy resulting DSO to <build>/rdl2dso dir to be found by tests
+       set(proxyDsoPath "${CMAKE_CURRENT_BINARY_DIR}/${configDir}/${name}.so.proxy")
        add_custom_command(TARGET ${name} POST_BUILD
            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/rdl2dso
            COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}>
            COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${name}_proxy> ${CMAKE_BINARY_DIR}/rdl2dso/$<TARGET_FILE_NAME:${name}_proxy>
+           COMMAND rdl2_json_exporter --dso_path ${CMAKE_CURRENT_BINARY_DIR}/${configDir}
+               --in ${proxyDsoPath}
+               --out ${CMAKE_CURRENT_BINARY_DIR}/${name}.json
+           COMMENT "Creating symlinks and generating JSON metadata for ${name}"
+           VERBATIM
        )
    endif()
 
