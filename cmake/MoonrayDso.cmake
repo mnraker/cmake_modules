@@ -365,7 +365,6 @@ function(moonray_dso_simple targetName)
             --in $<TARGET_FILE:${targetName}_proxy>
             --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
             DEPENDS ${targetName}_proxy
-            BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
             VERBATIM
             )
     else()
@@ -375,7 +374,6 @@ function(moonray_dso_simple targetName)
             --in $<TARGET_FILE:${targetName}_proxy>
             --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
             DEPENDS ${targetName}_proxy
-            BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
             VERBATIM
             )
     endif()
