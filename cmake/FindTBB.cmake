@@ -94,9 +94,9 @@ macro(rk_tbb_list_components)
   if (TBB_FIND_COMPONENTS STREQUAL "")
     set(_REQUIRED_COMPONENTS "tbb")
     set(_OPTIONAL_COMPONENTS "tbbmalloc"
-                             "tbbmalloc_proxy"
-                             "tbbbind"
-                             "tbbpreview")
+                             "tbbmalloc_proxy")
+                            #  "tbbbind"
+                            #  "tbbpreview")
   else()
     set(_REQUIRED_COMPONENTS "")
     set(_OPTIONAL_COMPONENTS "")
@@ -221,7 +221,9 @@ macro(rk_tbb_reuse_existing_target_components)
     set(TBB_INCLUDE_DIRS "${TBB_INCLUDE_DIR}")
     return()
   elseif ((TARGET TBB) OR (NOT _TBB_AVAILABLE_COMPONENTS STREQUAL ""))
-    rk_tbb_error("Ignoring existing TBB targets because required components are missing: ${_TBB_MISSING_COMPONENTS}")
+  rk_tbb_status("Existing TBB targets found but incomplete (missing: ${_TBB_MISSING_COMPONENTS}). "
+  "Will search for TBB and create missing component targets.")
+  # Do NOT return() or error here: fall through to the normal search path below.
   endif()
 endmacro()
 
@@ -400,60 +402,58 @@ function(rk_tbb_find_and_link_component COMPONENT_NAME)
   rk_tbb_find_library("${COMPONENT_NAME}" DEBUG)
 
   if (${COMPONENT_NAME}_LIBRARY_RELEASE OR ${COMPONENT_NAME}_LIBRARY_DEBUG)
- 
-    # Note: We *must* use SHARED here rather than UNKNOWN as our
-    #       IMPORTED_NO_SONAME trick a few lines down does not work with
-    #       UNKNOWN.
-    # - made GLOBAL to make sure component target can be used whenever
-    # top level TBB target is defined
-    add_library(${COMPONENT_TARGET} SHARED IMPORTED GLOBAL)
 
-    if (${COMPONENT_NAME}_LIBRARY_RELEASE)
-      set_property(TARGET ${COMPONENT_TARGET} APPEND PROPERTY
-        IMPORTED_CONFIGURATIONS RELEASE)
-      if(WIN32)
-        set_target_properties(${COMPONENT_TARGET} PROPERTIES
-          IMPORTED_LOCATION_RELEASE "${${COMPONENT_NAME}_DLL_RELEASE}")
-        set_target_properties(${COMPONENT_TARGET} PROPERTIES
-          IMPORTED_IMPLIB_RELEASE "${${COMPONENT_NAME}_LIBRARY_RELEASE}")
-      else()
-        set_target_properties(${COMPONENT_TARGET} PROPERTIES
-          IMPORTED_LOCATION_RELEASE "${${COMPONENT_NAME}_LIBRARY_RELEASE}")
+    if (NOT TARGET ${COMPONENT_TARGET})
+      add_library(${COMPONENT_TARGET} SHARED IMPORTED GLOBAL)
+
+      if (${COMPONENT_NAME}_LIBRARY_RELEASE)
+        set_property(TARGET ${COMPONENT_TARGET} APPEND PROPERTY
+          IMPORTED_CONFIGURATIONS RELEASE)
+        if(WIN32)
+          set_target_properties(${COMPONENT_TARGET} PROPERTIES
+            IMPORTED_LOCATION_RELEASE "${${COMPONENT_NAME}_DLL_RELEASE}"
+            IMPORTED_IMPLIB_RELEASE  "${${COMPONENT_NAME}_LIBRARY_RELEASE}")
+        else()
+          set_target_properties(${COMPONENT_TARGET} PROPERTIES
+            IMPORTED_LOCATION_RELEASE "${${COMPONENT_NAME}_LIBRARY_RELEASE}")
+        endif()
       endif()
-    endif()
 
-    if (${COMPONENT_NAME}_LIBRARY_DEBUG)
-      set_property(TARGET ${COMPONENT_TARGET} APPEND PROPERTY
-        IMPORTED_CONFIGURATIONS DEBUG)
-      if(WIN32)
-        set_target_properties(${COMPONENT_TARGET} PROPERTIES
-          IMPORTED_LOCATION_DEBUG "${${COMPONENT_NAME}_DLL_DEBUG}")
-        set_target_properties(${COMPONENT_TARGET} PROPERTIES
-          IMPORTED_IMPLIB_DEBUG "${${COMPONENT_NAME}_LIBRARY_DEBUG}")
-      else()
-        set_target_properties(${COMPONENT_TARGET} PROPERTIES
-          IMPORTED_LOCATION_DEBUG "${${COMPONENT_NAME}_LIBRARY_DEBUG}")
+      if (${COMPONENT_NAME}_LIBRARY_DEBUG)
+        set_property(TARGET ${COMPONENT_TARGET} APPEND PROPERTY
+          IMPORTED_CONFIGURATIONS DEBUG)
+        if(WIN32)
+          set_target_properties(${COMPONENT_TARGET} PROPERTIES
+            IMPORTED_LOCATION_DEBUG "${${COMPONENT_NAME}_DLL_DEBUG}"
+            IMPORTED_IMPLIB_DEBUG  "${${COMPONENT_NAME}_LIBRARY_DEBUG}")
+        else()
+          set_target_properties(${COMPONENT_TARGET} PROPERTIES
+            IMPORTED_LOCATION_DEBUG "${${COMPONENT_NAME}_LIBRARY_DEBUG}")
+        endif()
       endif()
-    endif()
 
-    set_target_properties(${COMPONENT_TARGET} PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${TBB_INCLUDE_DIR}"
-      INTERFACE_COMPILE_DEFINITIONS "__TBB_NO_IMPLICIT_LINKAGE=1"
-    )
-
-
-    if(NOT WIN32)
-      # Note: IMPORTED_NO_SONAME must be set or cmake will attempt
-      #       to link to the full path of libtbb.so. Instead, we
-      #       rely on the linker to find libtbb.so.2.
       set_target_properties(${COMPONENT_TARGET} PROPERTIES
-        IMPORTED_NO_SONAME TRUE
+        INTERFACE_INCLUDE_DIRECTORIES "${TBB_INCLUDE_DIR}"
+        INTERFACE_COMPILE_DEFINITIONS "__TBB_NO_IMPLICIT_LINKAGE=1"
       )
+
+      if(NOT WIN32)
+        set_target_properties(${COMPONENT_TARGET} PROPERTIES
+          IMPORTED_NO_SONAME TRUE
+        )
+      endif()
+    endif()
+
+    # Ensure the umbrella interface target exists before linking
+    if (NOT TARGET TBB)
+      add_library(TBB INTERFACE)
     endif()
 
     target_link_libraries(TBB INTERFACE ${COMPONENT_TARGET})
   endif()
 endfunction()
+
+
 
 #===============================================================================
 
@@ -479,7 +479,9 @@ mark_as_advanced(TBB_INCLUDE_DIR) # Hide, we found something.
 
 rk_tbb_check_version()
 
-add_library(TBB INTERFACE)
+if (NOT TARGET TBB)
+  add_library(TBB INTERFACE)
+endif()
 
 foreach(C IN LISTS _REQUIRED_COMPONENTS _OPTIONAL_COMPONENTS)
   rk_tbb_find_and_link_component(${C})

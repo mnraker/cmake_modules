@@ -82,12 +82,37 @@ elseif(IsWindowsPlatform)
     set(GLOBAL_LINK_FLAGS /NODEFAULTLIB:libcmt.lib) # Ninja generator needs this
     set(GLOBAL_CPP_FLAGS __AVX__)
     set(GLOBAL_INSTALL_RPATH "$ORIGIN" "$ORIGIN/../lib64" "${COMPILER_LIBRARY_DIR}")
+
     set(GLOBAL_ISPC_FLAGS -D__x86_64__ -D__WIN32__ -D__AVX__ -D__AVX2__ --dllexport)
     set(GLOBAL_ISPC_INSTRUCTION_SETS avx2-i32x8)
-    set(ISPC_COMPILER $ENV{ISPC} CACHE STRING "Path to ISPC compiler")
     set(GLOBAL_ISPC_ARCH x86-64)
     set(GLOBAL_ISPC_TARGET_OS windows)
-    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1) # Windows needs to be explicit with exporting symbols
+
+    set(ISPC_COMPILER "$ENV{REZ_ISPC_ROOT}/bin/ispc.exe" CACHE STRING "Path to ISPC compiler")
+
+    foreach(_v
+        CMAKE_ISPC_FLAGS
+        CMAKE_ISPC_FLAGS_DEBUG
+        CMAKE_ISPC_FLAGS_RELWITHDEBINFO
+        CMAKE_ISPC_FLAGS_RELEASE
+        CMAKE_ISPC_FLAGS_MINSIZEREL
+    )
+        if(DEFINED ${_v})
+            string(REGEX REPLACE "(^|[ \t])/[Ee][Hh][^ \t]*" "" _tmp "${${_v}}")
+            string(STRIP "${_tmp}" _tmp)
+            set(${_v} "${_tmp}" CACHE STRING "ISPC flags (sanitized)" FORCE)
+        endif()
+    endforeach()
+
+    # Patch the ISPC compile rule itself (this is what actually generates the ispc.exe line)
+    if (DEFINED CMAKE_ISPC_COMPILE_OBJECT)
+        string(REPLACE "/EHsc" "" CMAKE_ISPC_COMPILE_OBJECT "${CMAKE_ISPC_COMPILE_OBJECT}")
+        string(REPLACE "/EHs"  "" CMAKE_ISPC_COMPILE_OBJECT "${CMAKE_ISPC_COMPILE_OBJECT}")
+        string(REPLACE "/EHc"  "" CMAKE_ISPC_COMPILE_OBJECT "${CMAKE_ISPC_COMPILE_OBJECT}")
+        set(CMAKE_ISPC_COMPILE_OBJECT "${CMAKE_ISPC_COMPILE_OBJECT}" CACHE STRING "ISPC compile rule (sanitized)" FORCE)
+    endif()
+
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1)
 endif()
 
 # ================================================
