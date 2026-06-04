@@ -13,7 +13,7 @@ if (DEFINED ENV{LOG4CPLUS_ROOT})
 elseif (DEFINED ENV{Log4cplus_ROOT})
     set(Log4cplus_INCLUDE_DIRS $ENV{Log4cplus_ROOT}/include)
 else()
-    set(Log4cplus_INCLUDE_DIRS ${Log4cplus_INCLUDE_DIR}/..)
+    set(Log4cplus_INCLUDE_DIRS ${Log4cplus_INCLUDE_DIR})
 endif()
 
 if(LOG4CPLUS_USE_STATIC_LIBS)
