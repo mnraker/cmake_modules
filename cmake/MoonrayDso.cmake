@@ -265,17 +265,6 @@ function(Moonray_dso_link_options target)
     endif()
 endfunction()
 
-
-if(DEFINED Python_EXECUTABLE AND NOT "${Python_EXECUTABLE}" STREQUAL "")
-    set(ISPC_DSO_GEN_PYTHON "${Python_EXECUTABLE}")
-elseif(DEFINED Python3_EXECUTABLE AND NOT "${Python3_EXECUTABLE}" STREQUAL "")
-    set(ISPC_DSO_GEN_PYTHON "${Python3_EXECUTABLE}")
-elseif(DEFINED PYTHON_EXECUTABLE AND NOT "${PYTHON_EXECUTABLE}" STREQUAL "")
-    set(ISPC_DSO_GEN_PYTHON "${PYTHON_EXECUTABLE}")
-else()
-    set(ISPC_DSO_GEN_PYTHON python)
-endif()
-
 # Create a DSO target from .cc, and attribute.cc sources
 # Parameters:
 #   targetName          : The name of the target and source filename, eg. ${name}.cc
@@ -447,6 +436,16 @@ endif()
 
 set(ISPC_DSO_GEN_SCRIPT ${ISPC_DSO_GENERATE} CACHE FILEPATH
     "The ispc_dso_generate script for generating sources and headers for a DSO from the .json file")
+
+if(DEFINED Python_EXECUTABLE AND NOT "${Python_EXECUTABLE}" STREQUAL "")
+    set(ISPC_DSO_GEN_PYTHON "${Python_EXECUTABLE}")
+elseif(DEFINED Python3_EXECUTABLE AND NOT "${Python3_EXECUTABLE}" STREQUAL "")
+    set(ISPC_DSO_GEN_PYTHON "${Python3_EXECUTABLE}")
+elseif(DEFINED PYTHON_EXECUTABLE AND NOT "${PYTHON_EXECUTABLE}" STREQUAL "")
+    set(ISPC_DSO_GEN_PYTHON "${PYTHON_EXECUTABLE}")
+else()
+    set(ISPC_DSO_GEN_PYTHON python)
+endif()
 
 
 # Create a DSO target from .cc, .ispc sources and JSON attribute description
