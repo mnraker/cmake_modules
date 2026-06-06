@@ -77,7 +77,7 @@ function(Moonray_dso_ispc_compile_options target)
     set_property(TARGET ${target}
                  PROPERTY ISPC_DEP_TARGET "")
     check_language(ISPC)
-    if(NOT CMAKE_ISPC_COMPILER)
+    if(NOT CMAKE_ISPC_COMPILER OR IsWindowsPlatform)
         get_target_property(SOURCES ${target} SOURCES)
         get_target_property(ISPC_HEADER_SUFFIX ${target} ISPC_HEADER_SUFFIX)
         get_target_property(ISPC_HEADER_DIRECTORY ${target} ISPC_HEADER_DIRECTORY)
@@ -115,11 +115,18 @@ function(Moonray_dso_ispc_compile_options target)
 
             set(objOut "${CMAKE_CURRENT_BINARY_DIR}/${srcName}.o")
             set(depFile "${CMAKE_CURRENT_BINARY_DIR}/${srcName}.dep")
+            set(headerOut "${ISPC_HEADER_DIRECTORY}/${srcName}${ISPC_HEADER_SUFFIX}")
+            if(IS_ABSOLUTE "${headerOut}")
+                set(headerArg "${headerOut}")
+            else()
+                set(headerArg "./${headerOut}")
+            endif()
+
             add_custom_command(
                 OUTPUT ${objOut}
                 COMMAND ${ISPC_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/${src}
                     -o ${objOut}
-                    -h "./${ISPC_HEADER_DIRECTORY}/${srcName}${ISPC_HEADER_SUFFIX}"
+                    -h ${headerArg}
                     -M -MF ${depFile}
                     --arch=${ISPC_ARCH}
                     --target=${ISPC_INSTRUCTION_SETS}
