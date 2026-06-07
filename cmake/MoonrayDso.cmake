@@ -115,6 +115,13 @@ function(Moonray_dso_ispc_compile_options target)
 
             set(objOut "${CMAKE_CURRENT_BINARY_DIR}/${srcName}.o")
             set(depFile "${CMAKE_CURRENT_BINARY_DIR}/${srcName}.dep")
+            if(IsWindowsPlatform)
+                set(depArgs "")
+                set(depFileArg "")
+            else()
+                set(depArgs -M -MF ${depFile})
+                set(depFileArg DEPFILE ${depFile})
+            endif()
             set(headerOut "${ISPC_HEADER_DIRECTORY}/${srcName}${ISPC_HEADER_SUFFIX}")
             if(IS_ABSOLUTE "${headerOut}")
                 set(headerArg "${headerOut}")
@@ -127,7 +134,7 @@ function(Moonray_dso_ispc_compile_options target)
                 COMMAND ${ISPC_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/${src}
                     -o ${objOut}
                     -h ${headerArg}
-                    -M -MF ${depFile}
+                    ${depArgs}
                     --arch=${ISPC_ARCH}
                     --target=${ISPC_INSTRUCTION_SETS}
                     --target-os=${ISPC_TARGET_OS}
@@ -137,7 +144,7 @@ function(Moonray_dso_ispc_compile_options target)
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
                 COMMAND_EXPAND_LISTS
                 VERBATIM
-                DEPFILE ${depFile}
+                ${depFileArg}
                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${src})
             list(APPEND ISPC_TARGET_OBJECTS ${objOut})
             #set_source_files_properties(${ISPC_HEADER_DIRECTORY}/${srcName}${ISPC_HEADER_SUFFIX} PROPERTIES GENERATED)
