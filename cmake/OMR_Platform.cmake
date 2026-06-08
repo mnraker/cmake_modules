@@ -90,7 +90,11 @@ elseif(IsWindowsPlatform)
     set(GLOBAL_ISPC_INSTRUCTION_SETS avx2-i32x8)
     set(GLOBAL_ISPC_ARCH x86-64)
     set(GLOBAL_ISPC_TARGET_OS windows)
-    set(ISPC_COMPILER "$ENV{REZ_ISPC_ROOT}/bin/ispc.exe" CACHE STRING "Path to ISPC compiler")
+    if(DEFINED ENV{ISPC} AND NOT "$ENV{ISPC}" STREQUAL "")
+        set(ISPC_COMPILER "$ENV{ISPC}" CACHE STRING "Path to ISPC compiler")
+    else()
+        set(ISPC_COMPILER "$ENV{REZ_ISPC_ROOT}/bin/ispc.exe" CACHE STRING "Path to ISPC compiler")
+    endif()
 
     foreach(_v
         CMAKE_ISPC_FLAGS
@@ -117,7 +121,7 @@ elseif(IsWindowsPlatform)
 
     # Workaround for Visual Studio 2022 v17.10+ constexpr mutex constructor change,
     # while remaining compatible with older vfxplatform-matching runtimes.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
+    list(APPEND GLOBAL_COMPILE_DEFINITIONS _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
 endif()
 
 # ================================================
