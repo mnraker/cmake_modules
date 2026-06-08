@@ -95,8 +95,10 @@ macro(rk_tbb_list_components)
     set(_REQUIRED_COMPONENTS "tbb")
     set(_OPTIONAL_COMPONENTS "tbbmalloc"
                              "tbbmalloc_proxy")
-                            #  "tbbbind"
-                            #  "tbbpreview")
+    # oneTBB packages may not provide these legacy optional components.
+    # set(_OPTIONAL_COMPONENTS ${_OPTIONAL_COMPONENTS}
+    #                          "tbbbind"
+    #                          "tbbpreview")
   else()
     set(_REQUIRED_COMPONENTS "")
     set(_OPTIONAL_COMPONENTS "")
@@ -221,9 +223,9 @@ macro(rk_tbb_reuse_existing_target_components)
     set(TBB_INCLUDE_DIRS "${TBB_INCLUDE_DIR}")
     return()
   elseif ((TARGET TBB) OR (NOT _TBB_AVAILABLE_COMPONENTS STREQUAL ""))
-  rk_tbb_status("Existing TBB targets found but incomplete (missing: ${_TBB_MISSING_COMPONENTS}). "
-  "Will search for TBB and create missing component targets.")
-  # Do NOT return() or error here: fall through to the normal search path below.
+    rk_tbb_status("Existing TBB targets found but incomplete (missing: ${_TBB_MISSING_COMPONENTS}). "
+                  "Will search for TBB and create missing component targets.")
+    # Do not return or error here: fall through to the normal search path below.
   endif()
 endmacro()
 
@@ -452,8 +454,6 @@ function(rk_tbb_find_and_link_component COMPONENT_NAME)
     target_link_libraries(TBB INTERFACE ${COMPONENT_TARGET})
   endif()
 endfunction()
-
-
 
 #===============================================================================
 
