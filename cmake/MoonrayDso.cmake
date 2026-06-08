@@ -218,7 +218,7 @@ function(Moonray_dso_cxx_compile_definitions target)
             BOOST_FILESYSTEM_VERSION=3          # TODO: add comment
             DWA_BOOST_VERSION=1073000           # TODO: add comment
             OPENVDB_USE_BLOSC                   # TODO: Move this to where it is needed?
-            $<IF:$<NOT:$<BOOL:${IsWindowsPlatform}>>,OPENVDB_USE_LOG4CPLUS,> # TODO: Alex get OpenVDB to work with LOG4CPLUS windows
+            $<IF:$<NOT:$<BOOL:${IsWindowsPlatform}>>,OPENVDB_USE_LOG4CPLUS,> # OpenVDB log4cplus integration is not enabled on Windows yet.
             DWREAL_IS_DOUBLE=1                  # TODO: add comment
             dwreal=double                       # TODO: add comment
             GL_GLEXT_PROTOTYPES=1               # TODO: add comment
@@ -300,6 +300,26 @@ function(moonray_get_rdl2_json_exporter_command outCommand outDependency)
         set(${outDependency} "" PARENT_SCOPE)
     endif()
 endfunction()
+function(moonray_get_windows_runtime_path outPath)
+    set(_runtime_path "$ENV{PATH}")
+
+    foreach(_prefix IN LISTS CMAKE_PREFIX_PATH)
+        if(NOT "${_prefix}" STREQUAL "")
+            string(APPEND _runtime_path ";${_prefix}/bin;${_prefix}/lib")
+        endif()
+    endforeach()
+
+    if(DEFINED ENV{BUILD_DIR})
+        string(APPEND _runtime_path ";$ENV{BUILD_DIR}/bin;$ENV{BUILD_DIR}/lib")
+    endif()
+
+    if(DEFINED ENV{DEPS_ROOT})
+        string(APPEND _runtime_path ";$ENV{DEPS_ROOT}/bin;$ENV{DEPS_ROOT}/lib")
+    endif()
+
+    string(REPLACE ";" "\;" _runtime_path "${_runtime_path}")
+    set(${outPath} "${_runtime_path}" PARENT_SCOPE)
+endfunction()
 
 function(moonray_dso_simple targetName)
     moonray_get_rdl2_json_exporter_command(RDL2_JSON_EXPORTER_COMMAND RDL2_JSON_EXPORTER_DEPENDENCY)
@@ -366,40 +386,23 @@ function(moonray_dso_simple targetName)
        # Defines a custom command that when run generates the json files
        # needed for third party apps
     if(IsWindowsPlatform)
-        # To run rdl2_json_exporter at build-time, ensure required runtime
-        # libraries are available to dynamically link with.
-        set(_env_list)
-        list(APPEND _env_list "$ENV{PATH}")
-        list(APPEND _env_list "${CMAKE_PREFIX_PATH}/bin")
-        list(APPEND _env_list "${CMAKE_PREFIX_PATH}/lib")
-
-        if(DEFINED ENV{BUILD_DIR})
-            list(APPEND _env_list "$ENV{BUILD_DIR}/bin")
-            list(APPEND _env_list "$ENV{BUILD_DIR}/lib")
-        endif()
-        if(DEFINED ENV{DEPS_ROOT})
-            list(APPEND _env_list "$ENV{DEPS_ROOT}/bin")
-            list(APPEND _env_list "$ENV{DEPS_ROOT}/lib")
-        endif()
-
-        set(_native_env_list "$ENV{PATH}")
-foreach(_prefix IN LISTS CMAKE_PREFIX_PATH)
-    string(APPEND _native_env_list ";${_prefix}/bin;${_prefix}/lib")
-endforeach()
-if(DEFINED ENV{DEPS_ROOT})
-    string(APPEND _native_env_list ";$ENV{DEPS_ROOT}/bin;$ENV{DEPS_ROOT}/lib")
-endif()
-string(REPLACE ";" "\;" _native_env_list "${_native_env_list}")
+        moonray_get_windows_runtime_path(_moonray_runtime_path)
+        set(_rdl2_json_exporter_exe
+            "${CMAKE_BINARY_DIR}/moonray/scene_rdl2/cmd/rdl2_cmd/rdl2_json_exporter/rdl2_json_exporter.exe"
+        )
+        set(jsonExporterCommand
+            ${CMAKE_COMMAND} -E env "PATH=${_moonray_runtime_path}"
+            "${_rdl2_json_exporter_exe}"
+        )
         add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
             POST_BUILD
-            COMMAND
-            "${CMAKE_BINARY_DIR}/moonray/scene_rdl2/cmd/rdl2_cmd/rdl2_json_exporter/rdl2_json_exporter.exe"
-            --dso_path "$<TARGET_FILE_DIR:${targetName}_proxy>"
-            --in $<TARGET_FILE:${targetName}_proxy>
-            --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
+            COMMAND ${jsonExporterCommand}
+                --dso_path "$<TARGET_FILE_DIR:${targetName}_proxy>"
+                --in $<TARGET_FILE:${targetName}_proxy>
+                --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
             DEPENDS
                 ${targetName}_proxy
-                "${CMAKE_BINARY_DIR}/moonray/scene_rdl2/cmd/rdl2_cmd/rdl2_json_exporter/rdl2_json_exporter.exe"
+                "${_rdl2_json_exporter_exe}"
             VERBATIM
             )
     else()
@@ -410,7 +413,7 @@ string(REPLACE ";" "\;" _native_env_list "${_native_env_list}")
             --out ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
             DEPENDS
                 ${targetName}_proxy
-                "${CMAKE_BINARY_DIR}/moonray/scene_rdl2/cmd/rdl2_cmd/rdl2_json_exporter/rdl2_json_exporter.exe"
+                ${RDL2_JSON_EXPORTER_DEPENDENCY}
             VERBATIM
             )
     endif()
@@ -659,33 +662,14 @@ function(moonray_ispc_dso name)
        set(proxyDsoPath "${CMAKE_CURRENT_BINARY_DIR}/${configDir}/${name}.so.proxy")
 
        if(IsWindowsPlatform)
-          # To run rdl2_json_exporter at build-time, ensure required runtime
-          # libraries are available to dynamically link with.
-          set(_env_list)
-          list(APPEND _env_list "$ENV{PATH}")
-          list(APPEND _env_list "${CMAKE_PREFIX_PATH}/bin")
-          list(APPEND _env_list "${CMAKE_PREFIX_PATH}/lib")
-
-          if(DEFINED ENV{BUILD_DIR})
-              list(APPEND _env_list "$ENV{BUILD_DIR}/bin")
-              list(APPEND _env_list "$ENV{BUILD_DIR}/lib")
-          endif()
-          if(DEFINED ENV{DEPS_ROOT})
-              list(APPEND _env_list "$ENV{DEPS_ROOT}/bin")
-              list(APPEND _env_list "$ENV{DEPS_ROOT}/lib")
-          endif()
-
-          set(_native_env_list "$ENV{PATH}")
-foreach(_prefix IN LISTS CMAKE_PREFIX_PATH)
-    string(APPEND _native_env_list ";${_prefix}/bin;${_prefix}/lib")
-endforeach()
-if(DEFINED ENV{DEPS_ROOT})
-    string(APPEND _native_env_list ";$ENV{DEPS_ROOT}/bin;$ENV{DEPS_ROOT}/lib")
-endif()
-string(REPLACE ";" "\;" _native_env_list "${_native_env_list}")
-          set(jsonExporterCommand
-              ${CMAKE_COMMAND} -E env "PATH=${_native_env_list}"
-              "${CMAKE_BINARY_DIR}/moonray/scene_rdl2/cmd/rdl2_cmd/rdl2_json_exporter/rdl2_json_exporter.exe")
+           moonray_get_windows_runtime_path(_moonray_runtime_path)
+           set(_rdl2_json_exporter_exe
+               "${CMAKE_BINARY_DIR}/moonray/scene_rdl2/cmd/rdl2_cmd/rdl2_json_exporter/rdl2_json_exporter.exe"
+           )
+           set(jsonExporterCommand
+               ${CMAKE_COMMAND} -E env "PATH=${_moonray_runtime_path}"
+               "${_rdl2_json_exporter_exe}"
+           )
        else()
            set(jsonExporterCommand ${RDL2_JSON_EXPORTER_COMMAND})
        endif()
