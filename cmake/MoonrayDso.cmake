@@ -300,6 +300,26 @@ function(moonray_get_rdl2_json_exporter_command outCommand outDependency)
         set(${outDependency} "" PARENT_SCOPE)
     endif()
 endfunction()
+function(moonray_add_rdl2_json_exporter_dependency target)
+    if(TARGET rdl2_json_exporter)
+        add_dependencies(${target} rdl2_json_exporter)
+    else()
+        if(NOT DEFINED MOONRAY_DSO_DEFER_DIRECTORY)
+            message(FATAL_ERROR
+                "MOONRAY_DSO_DEFER_DIRECTORY is required before "
+                "rdl2_json_exporter is declared"
+            )
+        endif()
+
+        cmake_language(EVAL CODE
+            "cmake_language(
+                DEFER
+                DIRECTORY \"${MOONRAY_DSO_DEFER_DIRECTORY}\"
+                CALL add_dependencies \"${target}\" rdl2_json_exporter
+            )"
+        )
+    endif()
+endfunction()
 function(moonray_get_windows_runtime_path outPath)
     set(_runtime_path "$ENV{PATH}")
 
@@ -391,7 +411,6 @@ function(moonray_dso_simple targetName)
             "${CMAKE_BINARY_DIR}/moonray/scene_rdl2/cmd/rdl2_cmd/rdl2_json_exporter/rdl2_json_exporter.exe"
         )
         set(jsonExporterCommand
-            ${CMAKE_COMMAND} -E env "PATH=${_moonray_runtime_path}"
             "${_rdl2_json_exporter_exe}"
         )
         add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json
@@ -419,6 +438,8 @@ function(moonray_dso_simple targetName)
     endif()
        add_custom_target(coredata_${targetName} ALL DEPENDS
            ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json)
+       
+       moonray_add_rdl2_json_exporter_dependency(coredata_${targetName})
 
        # copy resulting DSOs to <build>/rdl2dso dir to be found by tests
       if (IsWindowsPlatform)
@@ -667,16 +688,13 @@ function(moonray_ispc_dso name)
                "${CMAKE_BINARY_DIR}/moonray/scene_rdl2/cmd/rdl2_cmd/rdl2_json_exporter/rdl2_json_exporter.exe"
            )
            set(jsonExporterCommand
-               ${CMAKE_COMMAND} -E env "PATH=${_moonray_runtime_path}"
                "${_rdl2_json_exporter_exe}"
            )
        else()
            set(jsonExporterCommand ${RDL2_JSON_EXPORTER_COMMAND})
        endif()
 
-       if(RDL2_JSON_EXPORTER_DEPENDENCY)
-           add_dependencies(${name} ${RDL2_JSON_EXPORTER_DEPENDENCY})
-       endif()
+       moonray_add_rdl2_json_exporter_dependency(${name})
 
       if (IsWindowsPlatform)
           add_custom_command(TARGET ${name} POST_BUILD
