@@ -233,7 +233,7 @@ def declareISPCAttributeKey(data, attr, ns):
     if keyType != 'UNKNOWN_ATTR_TYPE':
         text = ('namespace ' + ns + ' { extern AttributeKey<%s> %s;' %
                  (data['type'], attr) + ' }\n')
-        text += ('%s *%s = (%s *) &%s::%s;\n' %
+        text += ('extern "C" %s *%s = (%s *) &%s::%s;\n' %
                  (keyType, attr, keyType, ns, attr))
     else:
         text = ''
