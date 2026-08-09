@@ -439,8 +439,11 @@ function(moonray_dso_simple targetName)
        add_custom_target(coredata_${targetName} ALL DEPENDS
            ${CMAKE_CURRENT_BINARY_DIR}/${dsoName}.json)
        
-       moonray_add_rdl2_json_exporter_dependency(coredata_${targetName})
-
+       if(IsWindowsPlatform)
+       
+           moonray_add_rdl2_json_exporter_dependency(coredata_${targetName})
+       
+       endif()
        # copy resulting DSOs to <build>/rdl2dso dir to be found by tests
       if (IsWindowsPlatform)
            add_custom_command(TARGET ${targetName} POST_BUILD
