@@ -605,11 +605,15 @@ function(moonray_ispc_dso name)
     # ISPC sources must wait for generated headers before compilation
     set_property(SOURCE ${ispcSrc}
         PROPERTY OBJECT_DEPENDS ${genDir}/attributes.isph ${genDir}/labels.isph)
-    
-    file(RELATIVE_PATH relBinDir ${CMAKE_BINARY_DIR} ${genDir})
+
+    set(relBinDir ${genDir})
+    if(CMAKE_ISPC_COMPILER)
+        file(RELATIVE_PATH relBinDir ${CMAKE_BINARY_DIR} ${genDir})
+        set(relBinDir "/${relBinDir}")
+    endif()
     set_target_properties(${objLib} PROPERTIES
         ISPC_HEADER_SUFFIX _ispc_stubs.h
-        ISPC_HEADER_DIRECTORY ${genDir}
+        ISPC_HEADER_DIRECTORY ${relBinDir}
         ISPC_INSTRUCTION_SETS ${GLOBAL_ISPC_INSTRUCTION_SETS}
         ISPC_ARCH ${GLOBAL_ISPC_ARCH}
         ISPC_TARGET_OS ${GLOBAL_ISPC_TARGET_OS}
